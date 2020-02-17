@@ -65,19 +65,17 @@ namespace FiddlerWebSocket
 
     private void FiddlerApplicationOnOnWebSocketMessage_(
       object sender,
-      WebSocketMessageEventArgs webSocketMessageEventArgs)
+      WebSocketMessageEventArgs args)
     {
-      var session = sender as Session;
-
-      if (session == null)
+      if (sender is Session session)
       {
-        Log.Info("Unknown sender");
-        return;
+        var message = args.oWSM;
+        handler_.Enqueue(session, message);
       }
-
-      var message = webSocketMessageEventArgs.oWSM;
-
-      handler_.Enqueue(session, message);
+      else
+      {
+          Log.Info("Unknown sender");
+      }
     }
   }
 }

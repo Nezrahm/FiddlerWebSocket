@@ -87,8 +87,7 @@ namespace FiddlerWebSocket
     {
       while (!token_.IsCancellationRequested)
       {
-        Item item;
-        if (!items_.TryDequeue(out item))
+        if (!items_.TryDequeue(out var item))
         {
           Thread.Sleep(100);
           continue;
