@@ -15,7 +15,7 @@ namespace FiddlerWebSocket
 
   internal class Handler : IDisposable
   {
-    private static readonly string[] filtered_ = 
+    private static readonly string[] filtered_ =
     {
       ".github.com",
       ".slack.com",
@@ -41,21 +41,19 @@ namespace FiddlerWebSocket
       items_.Enqueue(new Item(session, message));
     }
 
-    private static void SendRequest_(string url, string message)
+    private static void SendRequest_(string url, StringBuilder message)
     {
-      var request = string.Format(
-        "POST {1} HTTP/1.1\n" +
-        "User-Agent: {0}\n" +
-        "Content-Type: application/json; charset=utf-8\n" +
-        "Content-Length: {2}\n" +
-        "\n" +
-        "{3}",
-        WebSocketViewer.Name,
-        url,
-        message.Length,
-        message);
+      var capacity = message.Length + url.Length + 130;
 
-      FiddlerApplication.oProxy.SendRequest(request, null);
+      var request = new StringBuilder(capacity)
+        .AppendLine($"POST {url} HTTP/1.1")
+        .AppendLine($"User-Agent: {WebSocketViewer.Name}")
+        .AppendLine("Content-Type: application/json; charset=utf-8")
+        .AppendLine($"Content-Length: {message.Length}")
+        .AppendLine()
+        .Append(message);
+
+      FiddlerApplication.oProxy.SendRequest(request.ToString(), null);
     }
 
     private static string GetUrl_(Session session, WebSocketMessage message)
@@ -87,14 +85,15 @@ namespace FiddlerWebSocket
       var query = HttpUtility.ParseQueryString(uri.Query);
 
       var url = GetUrl_(session, message);
+      var payload = message.ToString();
 
-      var request = new StringBuilder();
-      request.AppendLine(message.ToString());
+      var request = new StringBuilder(payload.Length + 200);
+      request.AppendLine(payload);
       request.AppendLine($"IsFinalFrame: {message.IsFinalFrame}");
       request.AppendLine($"clientProtocol: {query["clientProtocol"]}");
       request.AppendLine($"connectionData: {query["connectionData"]}");
 
-      SendRequest_(url, request.ToString());
+      SendRequest_(url, request);
     }
 
     private async Task DoProcess_()
