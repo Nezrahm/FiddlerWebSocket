@@ -10,8 +10,7 @@ namespace FiddlerWebSocket
   {
     public static void Info(string message)
     {
-      FiddlerApplication.Log.LogString(
-        $"{WebSocketViewer.Name}: {message}");
+      FiddlerApplication.Log.LogString($"{WebSocketViewer.Name}: {message}");
     }
 
     public static void Error(string message)

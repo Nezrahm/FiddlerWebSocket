@@ -6,27 +6,33 @@ namespace FiddlerWebSocket
 {
   using System;
   using System.Collections.Concurrent;
+  using System.Linq;
   using System.Text;
   using System.Threading;
   using System.Threading.Tasks;
   using System.Web;
-
   using Fiddler;
 
   internal class Handler : IDisposable
   {
+    private static readonly string[] filtered_ = 
+    {
+      ".github.com",
+      ".slack.com",
+    };
+
     private readonly ConcurrentQueue<Item> items_ = new ConcurrentQueue<Item>();
     private readonly CancellationTokenSource token_;
 
     public Handler()
     {
       token_ = new CancellationTokenSource();
-      var task = new Task(DoProcess_, token_.Token);
-      task.Start();
+      Task.Run(DoProcess_, token_.Token);
     }
 
     public void Dispose()
     {
+      token_?.Cancel();
       token_?.Dispose();
     }
 
@@ -62,13 +68,21 @@ namespace FiddlerWebSocket
         message.ID);
     }
 
+    private static bool ShouldProcessMessage_(Item item)
+    {
+      var host = item.Session.hostname;
+      if (filtered_.Any(f => host.EndsWith(f)))
+        return false;
+
+      var message = item.Message;
+      if (message.FrameType == WebSocketFrameTypes.Text && message.PayloadAsString() == "{}")
+        return false;
+
+      return true;
+    }
+
     private static void ProcessMessage_(Session session, WebSocketMessage message)
     {
-      if (message.FrameType == WebSocketFrameTypes.Text && message.PayloadAsString() == "{}")
-      {
-        return;
-      }
-
       var uri = new Uri(session.fullUrl);
       var query = HttpUtility.ParseQueryString(uri.Query);
 
@@ -83,15 +97,18 @@ namespace FiddlerWebSocket
       SendRequest_(url, request.ToString());
     }
 
-    private void DoProcess_()
+    private async Task DoProcess_()
     {
       while (!token_.IsCancellationRequested)
       {
         if (!items_.TryDequeue(out var item))
         {
-          Thread.Sleep(100);
+          await Task.Delay(100);
           continue;
         }
+
+        if (!ShouldProcessMessage_(item))
+          continue;
 
         try
         {
